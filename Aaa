@@ -1,0 +1,600 @@
+-- ==========================================================
+-- PET HUB v9 - COMPLETO
+-- ==========================================================
+print(">>> INICIANDO")
+
+local Players = game:GetService("Players")
+local Tween = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local cfg = {
+    velTween = 500,
+    velChar = 16,
+    base = nil,
+    petSel = nil,
+    auto = false,
+    alerta = true,
+    filtro = "Todos",
+}
+
+-- UI
+local sg = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+sg.Name = "PetHub"
+sg.ResetOnSpawn = false
+
+local btn = Instance.new("TextButton", sg)
+btn.Size = UDim2.new(0, 45, 0, 45)
+btn.Position = UDim2.new(0, 15, 0.5, -22)
+btn.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+btn.Text = "🐾"
+btn.TextSize = 22
+btn.TextColor3 = Color3.fromRGB(180, 130, 255)
+btn.Font = Enum.Font.GothamBold
+btn.BorderSizePixel = 0
+btn.Active = true
+btn.Draggable = true
+Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+local j = Instance.new("Frame", sg)
+j.Size = UDim2.new(0, 290, 0, 420)
+j.Position = UDim2.new(0.5, -145, 0.5, -210)
+j.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+j.BorderSizePixel = 0
+j.Visible = false
+j.Active = true
+j.Draggable = true
+Instance.new("UICorner", j).CornerRadius = UDim.new(0, 10)
+
+local t = Instance.new("TextLabel", j)
+t.Size = UDim2.new(1, -40, 0, 28)
+t.Position = UDim2.new(0, 10, 0, 2)
+t.BackgroundTransparency = 1
+t.Text = "🐾 PET HUB"
+t.TextColor3 = Color3.fromRGB(200, 150, 255)
+t.TextSize = 13
+t.Font = Enum.Font.GothamBold
+t.TextXAlignment = Enum.TextXAlignment.Left
+
+local x = Instance.new("TextButton", j)
+x.Size = UDim2.new(0, 22, 0, 22)
+x.Position = UDim2.new(1, -26, 0, 3)
+x.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+x.Text = "X"
+x.TextColor3 = Color3.fromRGB(255, 255, 255)
+x.Font = Enum.Font.GothamBold
+x.TextSize = 10
+x.BorderSizePixel = 0
+Instance.new("UICorner", x).CornerRadius = UDim.new(0, 4)
+
+local af = Instance.new("Frame", j)
+af.Size = UDim2.new(1, -16, 0, 22)
+af.Position = UDim2.new(0, 8, 0, 32)
+af.BackgroundTransparency = 1
+local al = Instance.new("UIListLayout", af)
+al.FillDirection = Enum.FillDirection.Horizontal
+al.Padding = UDim.new(0, 3)
+
+local pgs, bts = {}, {}
+local function aba(nome, ord)
+    local b = Instance.new("TextButton", af)
+    b.Size = UDim2.new(0, 88, 0, 20)
+    b.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    b.Text = nome
+    b.TextColor3 = Color3.fromRGB(160, 160, 160)
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 9
+    b.BorderSizePixel = 0
+    b.LayoutOrder = ord
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+    local p = Instance.new("Frame", j)
+    p.Size = UDim2.new(1, -16, 1, -64)
+    p.Position = UDim2.new(0, 8, 0, 60)
+    p.BackgroundTransparency = 1
+    p.Visible = false
+    pgs[nome] = p
+    bts[nome] = b
+    return p
+end
+
+local pPets = aba("Pets", 1)
+local pTP = aba("TP+Tween", 2)
+local pMisc = aba("Misc", 3)
+
+local function trocar(nome)
+    for n, p in pairs(pgs) do
+        p.Visible = (n == nome)
+        bts[n].BackgroundColor3 = (n == nome) and Color3.fromRGB(80, 50, 160) or Color3.fromRGB(22, 22, 32)
+        bts[n].TextColor3 = (n == nome) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 160)
+    end
+end
+
+bts["Pets"].MouseButton1Click:Connect(function() trocar("Pets") end)
+bts["TP+Tween"].MouseButton1Click:Connect(function() trocar("TP+Tween") end)
+bts["Misc"].MouseButton1Click:Connect(function() trocar("Misc") end)
+print(">>> UI OK")
+
+-- Movimento
+local twAtual = nil
+
+local function cancelar()
+    if twAtual then pcall(function() twAtual:Cancel() end) twAtual = nil end
+    local c = player.Character
+    if c then
+        local h = c:FindFirstChild("HumanoidRootPart")
+        if h then
+            h.Anchored = false
+            h.AssemblyLinearVelocity = Vector3.zero
+            h.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+end
+
+local function tp(dest)
+    cancelar()
+    local c = player.Character
+    if not c then return end
+    local h = c:FindFirstChild("HumanoidRootPart")
+    if not h then return end
+    h.Anchored = true
+    h.AssemblyLinearVelocity = Vector3.zero
+    h.AssemblyAngularVelocity = Vector3.zero
+    h.CFrame = CFrame.new(dest.Position + Vector3.new(0, 6, 0))
+    task.wait(0.05)
+    h.Anchored = false
+end
+
+local function tw(dest, vel)
+    cancelar()
+    local c = player.Character
+    if not c then return end
+    local h = c:FindFirstChild("HumanoidRootPart")
+    if not h then return end
+    local v = vel or cfg.velTween
+    h.Anchored = true
+    h.AssemblyLinearVelocity = Vector3.zero
+    h.AssemblyAngularVelocity = Vector3.zero
+    local d = (dest.Position - h.Position).Magnitude
+    local dur = math.max(d / v, 0.1)
+    local ti = TweenInfo.new(dur, Enum.EasingStyle.Linear)
+    local tws = Tween:Create(h, ti, {CFrame = CFrame.new(dest.Position + Vector3.new(0, 6, 0))})
+    twAtual = tws
+    tws:Play()
+    tws.Completed:Wait()
+    if twAtual == tws then
+        twAtual = nil
+        h.Anchored = false
+        h.AssemblyLinearVelocity = Vector3.zero
+        h.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+print(">>> Mov OK")
+
+-- Aba Pets
+local sp = Instance.new("ScrollingFrame", pPets)
+sp.Size = UDim2.new(1, 0, 1, -110)
+sp.BackgroundTransparency = 1
+sp.BorderSizePixel = 0
+sp.ScrollBarThickness = 3
+sp.CanvasSize = UDim2.new(0, 0, 0, 0)
+Instance.new("UIListLayout", sp).Padding = UDim.new(0, 3)
+
+local ff = Instance.new("Frame", pPets)
+ff.Size = UDim2.new(1, -8, 0, 18)
+ff.Position = UDim2.new(0, 4, 1, -104)
+ff.BackgroundTransparency = 1
+local fl = Instance.new("UIListLayout", ff)
+fl.FillDirection = Enum.FillDirection.Horizontal
+fl.Padding = UDim.new(0, 3)
+
+local function criarFiltro(nome, cor)
+    local b = Instance.new("TextButton", ff)
+    b.Size = UDim2.new(0, 66, 0, 16)
+    b.BackgroundColor3 = cor
+    b.Text = nome
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 8
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+    b.MouseButton1Click:Connect(function()
+        cfg.filtro = nome
+        atualizar()
+    end)
+end
+
+criarFiltro("Todos", Color3.fromRGB(80, 80, 100))
+criarFiltro("Rare", Color3.fromRGB(80, 120, 200))
+criarFiltro("Secret", Color3.fromRGB(200, 80, 200))
+criarFiltro("Divine", Color3.fromRGB(220, 180, 60))
+
+local petsMapa = {}
+
+local function escanear()
+    petsMapa = {}
+    for _, o in ipairs(workspace:GetDescendants()) do
+        if o:IsA("Model") and o.Parent then
+            local p = o:FindFirstChild("HumanoidRootPart") or o.PrimaryPart
+            if p then
+                local v = o:GetAttribute("Value") or o:GetAttribute("Earnings") or o:GetAttribute("Renda") or 0
+                local fv = o:FindFirstChild("Value") or o:FindFirstChild("Earnings")
+                if fv and fv:IsA("ValueBase") then v = fv.Value end
+                local nl = o.Name:lower()
+                local eOvo = nl:find("egg") or nl:find("ovo") or nl:find("pet") or nl:find("brainrot")
+                if (tonumber(v) and tonumber(v) > 0) or eOvo then
+                    local rar = "Common"
+                    if nl:find("secret") then rar = "Secret"
+                    elseif nl:find("divine") then rar = "Divine"
+                    elseif nl:find("rare") or nl:find("mythic") then rar = "Rare" end
+                    table.insert(petsMapa, {nome = o.Name, valor = tonumber(v) or 0, parte = p, rar = rar})
+                end
+            end
+        end
+    end
+    table.sort(petsMapa, function(a, b) return a.valor > b.valor end)
+end
+
+atualizar = function()
+    for _, f in ipairs(sp:GetChildren()) do
+        if f:IsA("TextButton") then f:Destroy() end
+    end
+    escanear()
+    local lista = petsMapa
+    if cfg.filtro ~= "Todos" then
+        local f = {}
+        for _, p in ipairs(lista) do
+            if p.rar == cfg.filtro then table.insert(f, p) end
+        end
+        lista = f
+    end
+    for i, pet in ipairs(lista) do
+        local l = Instance.new("TextButton", sp)
+        l.Size = UDim2.new(1, -4, 0, 38)
+        l.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+        l.Text = ""
+        l.BorderSizePixel = 0
+        l.LayoutOrder = i
+        Instance.new("UICorner", l).CornerRadius = UDim.new(0, 5)
+
+        local n = Instance.new("TextLabel", l)
+        n.Size = UDim2.new(0, 180, 0, 14)
+        n.Position = UDim2.new(0, 8, 0, 4)
+        n.BackgroundTransparency = 1
+        n.Text = pet.nome
+        n.TextColor3 = Color3.fromRGB(255, 255, 255)
+        n.Font = Enum.Font.Gotham
+        n.TextSize = 10
+        n.TextXAlignment = Enum.TextXAlignment.Left
+
+        local r = Instance.new("TextLabel", l)
+        r.Size = UDim2.new(0, 180, 0, 10)
+        r.Position = UDim2.new(0, 8, 0, 18)
+        r.BackgroundTransparency = 1
+        r.Text = pet.rar
+        r.TextColor3 = Color3.fromRGB(150, 130, 220)
+        r.Font = Enum.Font.Gotham
+        r.TextSize = 8
+        r.TextXAlignment = Enum.TextXAlignment.Left
+
+        local v = Instance.new("TextLabel", l)
+        v.Size = UDim2.new(0, 80, 0, 12)
+        v.Position = UDim2.new(1, -88, 0, 14)
+        v.BackgroundTransparency = 1
+        v.Text = tostring(pet.valor)
+        v.TextColor3 = Color3.fromRGB(100, 255, 100)
+        v.Font = Enum.Font.GothamBold
+        v.TextSize = 9
+        v.TextXAlignment = Enum.TextXAlignment.Right
+
+        l.MouseButton1Click:Connect(function()
+            cfg.petSel = pet
+            for _, f in ipairs(sp:GetChildren()) do
+                if f:IsA("TextButton") then f.BackgroundColor3 = Color3.fromRGB(18, 18, 25) end
+            end
+            l.BackgroundColor3 = Color3.fromRGB(60, 40, 120)
+        end
+    end
+    sp.CanvasSize = UDim2.new(0, 0, 0, #lista * 41)
+end
+
+local bTween = Instance.new("TextButton", pPets)
+bTween.Size = UDim2.new(0.5, -6, 0, 26)
+bTween.Position = UDim2.new(0, 4, 1, -84)
+bTween.BackgroundColor3 = Color3.fromRGB(80, 140, 80)
+bTween.Text = "🐢 Tween"
+bTween.TextColor3 = Color3.fromRGB(255, 255, 255)
+bTween.Font = Enum.Font.GothamBold
+bTween.TextSize = 10
+bTween.BorderSizePixel = 0
+Instance.new("UICorner", bTween).CornerRadius = UDim.new(0, 6)
+
+local bTP = Instance.new("TextButton", pPets)
+bTP.Size = UDim2.new(0.5, -6, 0, 26)
+bTP.Position = UDim2.new(0.5, 2, 1, -84)
+bTP.BackgroundColor3 = Color3.fromRGB(60, 160, 60)
+bTP.Text = "⚡ TP"
+bTP.TextColor3 = Color3.fromRGB(255, 255, 255)
+bTP.Font = Enum.Font.GothamBold
+bTP.TextSize = 10
+bTP.BorderSizePixel = 0
+Instance.new("UICorner", bTP).CornerRadius = UDim.new(0, 6)
+
+local bIrVoltar = Instance.new("TextButton", pPets)
+bIrVoltar.Size = UDim2.new(1, -8, 0, 24)
+bIrVoltar.Position = UDim2.new(0, 4, 1, -54)
+bIrVoltar.BackgroundColor3 = Color3.fromRGB(180, 100, 60)
+bIrVoltar.Text = "🔁 Ir e Voltar"
+bIrVoltar.TextColor3 = Color3.fromRGB(255, 255, 255)
+bIrVoltar.Font = Enum.Font.GothamBold
+bIrVoltar.TextSize = 10
+bIrVoltar.BorderSizePixel = 0
+Instance.new("UICorner", bIrVoltar).CornerRadius = UDim.new(0, 6)
+
+local bVoltar = Instance.new("TextButton", pPets)
+bVoltar.Size = UDim2.new(1, -8, 0, 24)
+bVoltar.Position = UDim2.new(0, 4, 1, -26)
+bVoltar.BackgroundColor3 = Color3.fromRGB(160, 80, 60)
+bVoltar.Text = "🏠 Voltar Base"
+bVoltar.TextColor3 = Color3.fromRGB(255, 255, 255)
+bVoltar.Font = Enum.Font.GothamBold
+bVoltar.TextSize = 10
+bVoltar.BorderSizePixel = 0
+Instance.new("UICorner", bVoltar).CornerRadius = UDim.new(0, 6)
+
+bTween.MouseButton1Click:Connect(function()
+    if not cfg.petSel then return end
+    local c = player.Character
+    if c and c:FindFirstChild("HumanoidRootPart") then
+        cfg.base = cfg.base or c.HumanoidRootPart.CFrame
+        tw(cfg.petSel.parte.CFrame)
+    end
+end)
+
+bTP.MouseButton1Click:Connect(function()
+    if not cfg.petSel then return end
+    local c = player.Character
+    if c and c:FindFirstChild("HumanoidRootPart") then
+        cfg.base = cfg.base or c.HumanoidRootPart.CFrame
+        tp(cfg.petSel.parte.CFrame)
+    end
+end)
+
+bIrVoltar.MouseButton1Click:Connect(function()
+    task.spawn(function()
+        if not cfg.petSel then return end
+        local c = player.Character
+        if not c then return end
+        local h = c:FindFirstChild("HumanoidRootPart")
+        if not h then return end
+        cfg.base = cfg.base or h.CFrame
+        tp(cfg.petSel.parte.CFrame)
+        task.wait(1.5)
+        tw(cfg.base, cfg.velTween * 2)
+    end)
+end)
+
+bVoltar.MouseButton1Click:Connect(function()
+    if cfg.base then tw(cfg.base) end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if j.Visible and pgs["Pets"].Visible then
+            atualizar()
+        end
+    end
+end)
+print(">>> Pets OK")
+
+-- Aba TP + Tween
+local function bBot(parent, txt, cor, y)
+    local b = Instance.new("TextButton", parent)
+    b.Size = UDim2.new(1, -8, 0, 26)
+    b.Position = UDim2.new(0, 4, 0, y)
+    b.BackgroundColor3 = cor
+    b.Text = txt
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 10
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+
+local bSalvar = bBot(pTP, "📌 Salvar Base", Color3.fromRGB(60, 60, 160), 2)
+local bTPbase = bBot(pTP, "⚡ TP Base", Color3.fromRGB(200, 60, 60), 32)
+local bTWbase = bBot(pTP, "🏠 Tween Base", Color3.fromRGB(160, 80, 60), 62)
+local bAuto = bBot(pTP, "⚡ Auto Steal: OFF", Color3.fromRGB(160, 100, 40), 92)
+
+local vT = Instance.new("TextLabel", pTP)
+vT.Size = UDim2.new(1, -8, 0, 14)
+vT.Position = UDim2.new(0, 4, 0, 124)
+vT.BackgroundTransparency = 1
+vT.Text = "⚡ Tween: " .. cfg.velTween
+vT.TextColor3 = Color3.fromRGB(200, 200, 255)
+vT.Font = Enum.Font.Gotham
+vT.TextSize = 10
+vT.TextXAlignment = Enum.TextXAlignment.Left
+
+local sT = Instance.new("Frame", pTP)
+sT.Size = UDim2.new(1, -8, 0, 14)
+sT.Position = UDim2.new(0, 4, 0, 140)
+sT.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+sT.BorderSizePixel = 0
+Instance.new("UICorner", sT).CornerRadius = UDim.new(0, 5)
+
+local fT = Instance.new("Frame", sT)
+fT.Size = UDim2.new(0.15, 0, 1, 0)
+fT.BackgroundColor3 = Color3.fromRGB(120, 80, 200)
+fT.BorderSizePixel = 0
+Instance.new("UICorner", fT).CornerRadius = UDim.new(0, 5)
+
+local kT = Instance.new("TextButton", sT)
+kT.Size = UDim2.new(0, 14, 0, 14)
+kT.Position = UDim2.new(0.15, -7, 0, 0)
+kT.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+kT.Text = ""
+kT.BorderSizePixel = 0
+Instance.new("UICorner", kT).CornerRadius = UDim.new(1, 0)
+
+local vC = Instance.new("TextLabel", pTP)
+vC.Size = UDim2.new(1, -8, 0, 14)
+vC.Position = UDim2.new(0, 4, 0, 162)
+vC.BackgroundTransparency = 1
+vC.Text = "🏃 Personagem: " .. cfg.velChar
+vC.TextColor3 = Color3.fromRGB(255, 220, 150)
+vC.Font = Enum.Font.Gotham
+vC.TextSize = 10
+vC.TextXAlignment = Enum.TextXAlignment.Left
+
+local sC = Instance.new("Frame", pTP)
+sC.Size = UDim2.new(1, -8, 0, 14)
+sC.Position = UDim2.new(0, 4, 0, 178)
+sC.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+sC.BorderSizePixel = 0
+Instance.new("UICorner", sC).CornerRadius = UDim.new(0, 5)
+
+local fC = Instance.new("Frame", sC)
+fC.Size = UDim2.new(0.05, 0, 1, 0)
+fC.BackgroundColor3 = Color3.fromRGB(255, 180, 80)
+fC.BorderSizePixel = 0
+Instance.new("UICorner", fC).CornerRadius = UDim.new(0, 5)
+
+local kC = Instance.new("TextButton", sC)
+kC.Size = UDim2.new(0, 14, 0, 14)
+kC.Position = UDim2.new(0.05, -7, 0, 0)
+kC.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+kC.Text = ""
+kC.BorderSizePixel = 0
+Instance.new("UICorner", kC).CornerRadius = UDim.new(1, 0)
+
+local arrT, arrC = false, false
+kT.MouseButton1Down:Connect(function() arrT = true end)
+kC.MouseButton1Down:Connect(function() arrC = true end)
+
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        arrT = false arrC = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(i)
+    if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+    local mx = i.Position.X
+    if arrT then
+        local pct = math.clamp((mx - sT.AbsolutePosition.X) / sT.AbsoluteSize.X, 0, 1)
+        fT.Size = UDim2.new(pct, 0, 1, 0)
+        kT.Position = UDim2.new(pct, -7, 0, 0)
+        cfg.velTween = math.floor(100 + pct * 9900)
+        vT.Text = "⚡ Tween: " .. cfg.velTween
+    end
+    if arrC then
+        local pct = math.clamp((mx - sC.AbsolutePosition.X) / sC.AbsoluteSize.X, 0, 1)
+        fC.Size = UDim2.new(pct, 0, 1, 0)
+        kC.Position = UDim2.new(pct, -7, 0, 0)
+        cfg.velChar = math.floor(16 + pct * 484)
+        vC.Text = "🏃 Personagem: " .. cfg.velChar
+        local c = player.Character
+        if c and c:FindFirstChild("Humanoid") then c.Humanoid.WalkSpeed = cfg.velChar end
+    end
+end)
+
+bSalvar.MouseButton1Click:Connect(function()
+    local c = player.Character
+    if c and c:FindFirstChild("HumanoidRootPart") then
+        cfg.base = c.HumanoidRootPart.CFrame
+        bSalvar.Text = "✅ Salvo!"
+        task.wait(1.5)
+        bSalvar.Text = "📌 Salvar Base"
+    end
+end)
+
+bTPbase.MouseButton1Click:Connect(function()
+    if cfg.base then tp(cfg.base) end
+end)
+
+bTWbase.MouseButton1Click:Connect(function()
+    if cfg.base then tw(cfg.base) end
+end)
+
+bAuto.MouseButton1Click:Connect(function()
+    cfg.auto = not cfg.auto
+    bAuto.Text = cfg.auto and "⚡ Auto Steal: ON" or "⚡ Auto Steal: OFF"
+    if cfg.auto then
+        task.spawn(function()
+            while cfg.auto do
+                if cfg.petSel then
+                    local c = player.Character
+                    if c and c:FindFirstChild("HumanoidRootPart") then
+                        cfg.base = cfg.base or c.HumanoidRootPart.CFrame
+                        tp(cfg.petSel.parte.CFrame)
+                        task.wait(1.5)
+                        if cfg.base then tw(cfg.base, cfg.velTween * 2) end
+                    end
+                end
+                task.wait(1)
+            end
+        end)
+    end
+end)
+print(">>> TP+Tween OK")
+
+-- Aba Misc
+local function toggle(parent, nome, y, cb)
+    local f = Instance.new("Frame", parent)
+    f.Size = UDim2.new(1, -8, 0, 28)
+    f.Position = UDim2.new(0, 4, 0, y)
+    f.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+    f.BorderSizePixel = 0
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+
+    local l = Instance.new("TextLabel", f)
+    l.Size = UDim2.new(1, -50, 1, 0)
+    l.Position = UDim2.new(0, 10, 0, 0)
+    l.BackgroundTransparency = 1
+    l.Text = nome
+    l.TextColor3 = Color3.fromRGB(220, 220, 220)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 10
+    l.TextXAlignment = Enum.TextXAlignment.Left
+
+    local b = Instance.new("TextButton", f)
+    b.Size = UDim2.new(0, 40, 0, 20)
+    b.Position = UDim2.new(1, -45, 0, 4)
+    b.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    b.Text = "OFF"
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 9
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+
+    local e = false
+    b.MouseButton1Click:Connect(function()
+        e = not e
+        b.Text = e and "ON" or "OFF"
+        b.BackgroundColor3 = e and Color3.fromRGB(80, 200, 80) or Color3.fromRGB(80, 80, 100)
+        if cb then cb(e) end
+    end)
+end
+
+toggle(pMisc, "Alerta Ovo Raro", 5, function(on) cfg.alerta = on end)
+toggle(pMisc, "Aplicar Vel. Personagem", 40, function(on)
+    local c = player.Character
+    if c and c:FindFirstChild("Humanoid") then
+        c.Humanoid.WalkSpeed = on and cfg.velChar or 16
+    end
+end)
+
+workspace.DescendantAdded:Connect(function(obj)
+    if not cfg.alerta then return end
+    if obj:IsA("Model") then
+        local nl = obj.Name:lower()
+        for _, r in ipairs({"secret", "divine", "cosmic", "holy", "demon", "god", "mythic"}) do
+            if nl:find(r) then
+                pcall(function()
+                    game.StarterGui:SetCore("SendNotification", {
+                        Title = "🚨 OVO RARO!",
+                        Text = obj.Name .. " apareceu!",
+                        Duration = 5
+                    
